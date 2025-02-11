@@ -1,0 +1,6 @@
+Timestamp,Device,IP,Type,Name,Value,Unit
+2025-02-10 23:57:55,Server1,http://127.0.0.1:8001,Temperature,CPU1 Temp,111.0,Celsius
+2025-02-10 23:57:55,Server1,http://127.0.0.1:8001,Temperature,CPU2 Temp,112.0,Celsius
+2025-02-10 23:57:55,Server2,http://127.0.0.1:8002,Temperature,CPU1 Temp,221.0,Celsius
+2025-02-10 23:57:55,Server2,http://127.0.0.1:8002,Temperature,CPU2 Temp,222.0,Celsius
+2025-02-10 23:57:55,PDU1,http://127.0.0.1:9001,Error,,,

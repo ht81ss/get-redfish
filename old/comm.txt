@@ -1,0 +1,2 @@
+python redfishMockupServer.py -D ./public-rackmount1/ -H 127.0.0.1 -p 8001
+python redfishMockupServer.py -D ./public-rackmount2/ -H 127.0.0.1 -p 8002

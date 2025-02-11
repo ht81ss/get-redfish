@@ -1,0 +1,5 @@
+Timestamp,Device,Type,Name,Value,Unit
+2025-02-11 09:06:10,Server1,Temperature,CPU1 Temp,111,Celsius
+2025-02-11 09:06:10,Server1,Temperature,CPU2 Temp,112,Celsius
+2025-02-11 09:06:11,Server2,Temperature,CPU1 Temp,221,Celsius
+2025-02-11 09:06:11,Server2,Temperature,CPU2 Temp,222,Celsius

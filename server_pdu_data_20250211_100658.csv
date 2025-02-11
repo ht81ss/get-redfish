@@ -1,0 +1,6 @@
+Timestamp,Device,URL,Type,Name,Value,Unit,IP,Error Message
+2025-02-11 10:06:58,Server1,http://127.0.0.1:8001/redfish/v1/Chassis/1U/Thermal,Temperature,CPU1 Temp,111.0,Celsius,,
+2025-02-11 10:06:58,Server1,http://127.0.0.1:8001/redfish/v1/Chassis/1U/Thermal,Temperature,CPU2 Temp,112.0,Celsius,,
+2025-02-11 10:06:58,Server2,http://127.0.0.1:8002/redfish/v1/Chassis/1U/Thermal,Temperature,CPU1 Temp,221.0,Celsius,,
+2025-02-11 10:06:58,Server2,http://127.0.0.1:8002/redfish/v1/Chassis/1U/Thermal,Temperature,CPU2 Temp,222.0,Celsius,,
+2025-02-11 10:06:58,PDU1,http://127.0.0.1:9001/redfish/v1/Chassis/0/Power,Error,,,,http://127.0.0.1:9001,"HTTPConnectionPool(host='127.0.0.1', port=9001): Read timed out. (read timeout=5)"

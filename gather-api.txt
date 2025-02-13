@@ -1,0 +1,179 @@
+import requests
+import pandas as pd
+from datetime import datetime
+from requests.auth import HTTPBasicAuth
+import urllib3
+
+# SSL警告を無効化
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# 🔹 認証情報（Server1〜12は共通のID・PASS）
+AUTH_CREDENTIALS = {
+    **{f"Server{i}": HTTPBasicAuth("username", "password") for i in range(1, 13)},
+    "CDU1": HTTPBasicAuth("username", "password"),
+    "PDU1": None  # PDUは認証不要
+}
+
+# 🔹 取得対象のデバイスリスト
+SERVERS = [
+    *[{"name": f"Server{i}", "url": f"http://127.0.0.1:800{i}", "type": "temperature"} for i in range(1, 13)],
+    {"name": "PDU1", "url": "http://127.0.0.1:9001", "type": "power"},
+    {"name": "CDU1", "url": "http://127.0.0.1:9101", "type": "cdu"}
+]
+
+# 🔹 エンドポイント設定
+ENDPOINTS = {
+    "temperature": "/redfish/v1/Chassis/1U/Thermal",
+    "power": "/redfish/v1/Chassis/0/Power",
+    "cdu": "/api/v1/telemetry"
+}
+
+# 🔹 CDU のリクエストボディ（取得するデータのキーを定義）
+CDU_REQUEST_BODY = {
+    "types": ["PrimaryTemperature", "PrimaryPressure", "PrimaryFlowRate"]
+}
+
+# 🔹 サーバー・PDU のデータ取得（GET）
+def fetch_data_with_timeout(server):
+    url = f"{server['url']}{ENDPOINTS[server['type']]}"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    auth = AUTH_CREDENTIALS.get(server["name"], None)
+
+    try:
+        response = requests.get(url, verify=False, timeout=5, auth=auth)
+        response.raise_for_status()
+        return response.json(), url
+
+    except requests.exceptions.RequestException as e:
+        return [{
+            "Timestamp": timestamp,
+            "Device": server["name"],
+            "IP": server["url"],
+            "URL": url,
+            "Type": "Error",
+            "Name": "N/A",
+            "Value": "N/A",
+            "Unit": "N/A",
+            "Error Message": str(e)
+        }], url
+
+# 🔹 CDU のデータ取得（POST）
+def fetch_cdu_data(server):
+    url = f"{server['url']}{ENDPOINTS[server['type']]}"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    auth = AUTH_CREDENTIALS.get(server["name"], None)
+    body = CDU_REQUEST_BODY  # 事前に定義したリクエストボディを使用
+
+    try:
+        response = requests.post(url, json=body, verify=False, timeout=5, auth=auth)
+        response.raise_for_status()
+        return response.json(), url
+
+    except requests.exceptions.RequestException as e:
+        return [{
+            "Timestamp": timestamp,
+            "Device": server["name"],
+            "IP": server["url"],
+            "URL": url,
+            "Type": "Error",
+            "Name": "N/A",
+            "Value": "N/A",
+            "Unit": "N/A",
+            "Error Message": str(e)
+        }], url
+
+# 🔹 サーバーの CPU 温度データ抽出
+def extract_cpu_temperature(data, device_name, url):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    results = []
+
+    for sensor in data.get("Temperatures", []):
+        if sensor.get("PhysicalContext") == "CPU":
+            results.append({
+                "Timestamp": timestamp,
+                "Device": device_name,
+                "URL": url,
+                "Type": "Temperature",
+                "Name": sensor.get("Name", "Unknown"),
+                "Value": sensor.get("ReadingCelsius"),
+                "Unit": "Celsius"
+            })
+
+    return results
+
+# 🔹 PDU の消費電力データ抽出
+def extract_pdu_power(data, device_name, url):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    results = []
+
+    for power_ctrl in data.get("PowerControl", []):
+        results.append({
+            "Timestamp": timestamp,
+            "Device": device_name,
+            "URL": url,
+            "Type": "Power",
+            "Name": power_ctrl["Name"],
+            "Value": power_ctrl["PowerConsumedWatts"],
+            "Unit": "Watts"
+        })
+
+    return results
+
+# 🔹 CDU のデータ抽出（事前定義のキーのみ処理）
+def extract_cdu_data(data, device_name, url):
+    """CDU のレスポンスデータを統一フォーマットに変換"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    results = []
+
+    if "type" in data:
+        for key in CDU_REQUEST_BODY["types"]:  # 事前に定義したキーのみ処理
+            if key in data["type"]:  # レスポンスに存在する場合のみ処理
+                results.append({
+                    "Timestamp": timestamp,
+                    "Device": device_name,
+                    "URL": url,
+                    "Type": "CDU",
+                    "Name": key,
+                    "Value": data["type"][key],
+                    "Unit": "Unknown"
+                })
+
+    return results
+
+# 🔹 データ取得＆統合
+def fetch_and_display_data():
+    start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_file = f"server_pdu_cdu_data_{start_time}.csv"
+
+    all_data = []
+
+    for server in SERVERS:
+        if server["type"] == "cdu":
+            data, url = fetch_cdu_data(server)
+        else:
+            data, url = fetch_data_with_timeout(server)
+
+        if isinstance(data, list) and data and data[0].get("Type") == "Error":
+            all_data.extend(data)
+            continue
+
+        if server["type"] == "temperature":
+            all_data.extend(extract_cpu_temperature(data, server["name"], url))
+        elif server["type"] == "power":
+            all_data.extend(extract_pdu_power(data, server["name"], url))
+        elif server["type"] == "cdu":
+            all_data.extend(extract_cdu_data(data, server["name"], url))
+
+    if not all_data:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(all_data)
+    df.to_csv(csv_file, index=False)
+    return df
+
+df = fetch_and_display_data()
+
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Redfish Data", dataframe=df)
